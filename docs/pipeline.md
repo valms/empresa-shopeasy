@@ -1,5 +1,16 @@
 # Documentação de Pipeline CI/CD - ShopEasy
 
+## Metadados do Documento
+- Documento:
+- Versão:
+- Status: Rascunho | Em revisão | Aprovado
+- Responsável (owner):
+- Aprovador:
+- Última atualização:
+- Próxima revisão:
+- Público-alvo:
+- Classificação da informação: Interna | Restrita | Confidencial
+
 ## 1. Visão Geral do Pipeline
 - Produto/sistema atendido:
 - Objetivo do pipeline:
@@ -27,7 +38,7 @@
 
 ## 6. Estratégia de Deploy
 - Ambientes (dev/hml/prd):
-- Tipo de deploy:
+- Tipo de deploy (rolling, blue/green, canary):
 - Janela de publicação:
 
 ## 7. Aprovação e Governança
