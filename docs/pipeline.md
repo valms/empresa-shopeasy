@@ -82,15 +82,6 @@
 | Deploy Produção| push           | main              | Executado apenas após sucesso dos jobs anteriores. Publica em produção com estratégia rolling update. |
 
 ## 4. Estágios do Pipeline
-| Estágio | Objetivo | Critério de sucesso | Evidência gerada |
-
-| Análise Estática  | Avaliar qualidade do código com SonarQube | Quality Gate aprovado (sem violações críticas) | Relatório SonarQube e logs da análise           | Scan de Segurança (Repo)| Detectar vulnerabilidades, segredos e más configurações no código |Nenhuma vulnerabilidade HIGH ou CRITICAL|Relatório Trivy(artefato SARIF)|
-| Build da Imagem| Construir e publicar imagem Docker da aplicação| Build concluído com sucesso e imagem publicada no registry | Imagem no GHCR + artefato com referência da imagem |
-| Scan de Segurança (Imagem)| Identificar vulnerabilidades na imagem Docker | Nenhuma vulnerabilidade HIGH ou CRITICAL | Relatório Trivy da imagem + integração com GitHub Security  |
-| Testes Automatizados   | Validar comportamento da aplicação (unitários e integração)| Todos os testes executados com sucesso| Relatório de cobertura e logs de execução |
-| Deploy Homologação| Publicar aplicação no ambiente de homologação| Deploy realizado com sucesso + endpoint /health respondendo corretamente| Logs de deploy e resultado do smoke test |
-| Deploy Produção | Publicar aplicação em produção com estratégia controlada | Deploy realizado com sucesso + aplicação saudável após atualização | Logs de deploy, resultado do smoke test e possíveis notificações                  |
-
 
    <img width="1863" height="186" alt="image" src="https://github.com/user-attachments/assets/810b091b-c387-4a84-b378-7e612d26be99" />
                         
