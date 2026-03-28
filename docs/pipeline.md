@@ -38,14 +38,42 @@
 |   |   |   |   |
 
 ## 5. Gates de Qualidade
-- Testes obrigatórios:
-- Análises estáticas:
-- Critérios de bloqueio:
+Os Quality Gates são as barreiras automáticas que garantem que apenas códigos que atingem os padrões de excelência da **ShopEasy** avancem no pipeline.
+
+* **Testes Obrigatórios:**
+    * **Unitários:** Validação de lógica isolada (Job: `tests`).
+    * **Integração:** Validação de comunicação entre componentes e serviços (Job: `tests`).
+    * **Smoke Tests:** Testes de fumaça pós-deploy via endpoint `/health` (Jobs: `deploy-homolog` e `deploy-prod`).
+
+* **Análises Estáticas (SonarQube):**
+    O pipeline utiliza o `sonarqube-scan-action` com o parâmetro `sonar.qualitygate.wait=true`. O pipeline será interrompido se os seguintes índices não forem atingidos:
+    * **Manutenibilidade:** Rating B (6% - 10%).
+    * **Análise de Bugs:** Rating A (Zero bugs críticos).
+    * **Cobertura de Testes:** Superior a **80%**.
+    * **Duplicação de Código:** Inferior a **3%**.
+
+* **Segurança (TRIVY):**
+    Conforme configurado nos estágios 2 e 4 do pipeline, o **Trivy** realiza varreduras de *filesystem*, segredos expostos e vulnerabilidades na imagem Docker.
+    * **Critério de Bloqueio:** O pipeline é interrompido imediatamente (`exit-code: 1`) caso sejam encontradas vulnerabilidades de severidade **HIGH** ou **CRITICAL**.
+    É possível obter mais detalhes sobre o Trivy na **ETAPA 9** deste documento.
+
 
 ## 6. Estratégia de Deploy
-- Ambientes (dev/hml/prd):
-- Tipo de deploy (rolling, blue/green, canary):
-- Janela de publicação:
+O modelo de entrega da **ShopEasy** foca em segregação de ambientes e janelas de manutenção controladas.
+
+### 6.1. Ambientes (dev/hml/prd)
+O projeto possui 3 ambientes segregados:
+* **Desenvolvimento (DEV):** Branch que roda localmente para construção de features.
+* **Homologação (HML):** Ambiente de testes para validações do time de **QA**.
+* **Produção (PRD):** Ambiente final de entrega de valor.
+
+### 6.2. Tipo de Deploy
+* **Estratégia:** **Recreate**. 
+* **Funcionamento:** Sempre é gerada uma nova imagem versionada no **GHCR** (utilizando o `${{ github.sha }}`). A imagem antiga é preservada no registro para permitir o processo de **Rollback Manual** em caso de incidentes.
+
+### 6.3. Janela de Publicação
+* **Dias:** Terças-feiras e Quintas-feiras.
+* **Horário:** 03:00 AM (Horário de Brasília/São Paulo).
 
 ## 7. Aprovação e Governança
 
