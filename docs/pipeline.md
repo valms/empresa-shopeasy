@@ -19,7 +19,7 @@
   - O SonarQube está disponível como serviço externo com credenciais configuradas.
   - Os ambientes de homologação e produção estão configurados no GitHub com as respectivas regras de proteção.
   - A branch `develop` corresponde ao ambiente de homologação e `main` ao ambiente de produção.
-  - Os comandos de deploy e testes no pipeline são representativos - devem ser substituídos pelos comandos reais conforme a infraestrutura do projeto.
+  - Os comandos de deploy dependem da infraestrutura de destino do projeto (Kubernetes, ECS, VMs etc.) e devem ser configurados conforme o ambiente.
 
 - **Lacunas de informação:**
   - Infraestrutura de destino do deploy (Kubernetes, ECS, VMs etc.) não especificada — impede detalhar o mecanismo de publicação e rollback automatizado.
@@ -32,7 +32,7 @@
 | R1 | Credenciais expostas em repositório público | Alto | Manter repositório privado; usar GitHub Secrets com escopo por ambiente |
 | R2 | Varredura de segurança bloqueando deploy por vulnerabilidade sem correção disponível | Médio | Manter lista de exceções documentadas com data de revisão e justificativa |
 | R3 | Tag `latest` da imagem sobrescrita a cada publicação | Alto | Adotar versionamento semântico para produção; restringir `latest` a desenvolvimento |
-| R4 | Ausência de verificação de funcionamento real após o deploy | Alto | Substituir os placeholders por verificação real via endpoint `/health` |
+| R4 | Ausência de verificação de funcionamento automatizada após o deploy | Alto | Implementar verificação automática via endpoint `/health` nos jobs de deploy |
 | R5 | Deploy em produção sem aprovação manual configurada | Alto | Configurar aprovadores obrigatórios no ambiente de produção antes do primeiro uso |
 
 
@@ -328,7 +328,7 @@ flowchart TD
 | Prioridade | Melhoria | Justificativa |
 |---|---|---|
 | Alta | Configurar aprovadores obrigatórios no ambiente de produção | Evitar deploy acidental sem revisão humana |
-| Alta | Substituir placeholders de deploy e testes pelos comandos reais | Pipeline funcional em ambiente real |
+| Alta | Configurar o comando de deploy conforme a infraestrutura de destino do projeto | Garantir que a publicação ocorra de forma automatizada e rastreável |
 | Alta | Implementar verificação de funcionamento real via endpoint `/health` | Detectar falhas silenciosas após a publicação |
 | Alta | Adotar versionamento semântico nas tags de imagem | Rastreabilidade clara de qual versão está em cada ambiente |
 | Média | Adicionar teste de segurança em tempo de execução (DAST) após homologação | Ampliar cobertura de segurança além da análise estática |
