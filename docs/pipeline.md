@@ -90,7 +90,10 @@
 | Testes Automatizados   | Validar comportamento da aplicação (unitários e integração)| Todos os testes executados com sucesso| Relatório de cobertura e logs de execução |
 | Deploy Homologação| Publicar aplicação no ambiente de homologação| Deploy realizado com sucesso + endpoint /health respondendo corretamente| Logs de deploy e resultado do smoke test |
 | Deploy Produção | Publicar aplicação em produção com estratégia controlada | Deploy realizado com sucesso + aplicação saudável após atualização | Logs de deploy, resultado do smoke test e possíveis notificações                  |
-                           
+
+
+   <img width="1863" height="186" alt="image" src="https://github.com/user-attachments/assets/810b091b-c387-4a84-b378-7e612d26be99" />
+                        
 
 ## 5. Gates de Qualidade
 Os Quality Gates são as barreiras automáticas que garantem que apenas códigos que atingem os padrões de excelência da **ShopEasy** avancem no pipeline.
