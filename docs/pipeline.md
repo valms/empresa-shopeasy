@@ -54,6 +54,17 @@
 | GitHub Environments | Controle de aprovação manual e registro de auditoria por ambiente |
 | Jest | Execução de testes unitários e de integração com geração de relatório de cobertura |
 
+```mermaid
+flowchart LR
+    A([Código enviado]) --> B[Análise\nSonarQube + Trivy]
+    B -->|Gates aprovados| C[Build\nImagem Docker]
+    C --> D[Trivy Imagem\n+ Testes Jest]
+    D -->|develop| E[Deploy\nHomologação]
+    D -->|main + aprovação| F[Deploy\nProdução]
+    B -->|Falha| G([Interrompido])
+    D -->|Falha| G
+```
+
 ## 2. Estratégia de Versionamento e Branches
 
 - **Modelo de branches adotado:** GitFlow simplificado. ([referência](https://nvie.com/posts/a-successful-git-branching-model/))
