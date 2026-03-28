@@ -48,9 +48,6 @@
 | Testes Automatizados   | Validar comportamento da aplicação (unitários e integração)| Todos os testes executados com sucesso| Relatório de cobertura e logs de execução |
 | Deploy Homologação| Publicar aplicação no ambiente de homologação| Deploy realizado com sucesso + endpoint /health respondendo corretamente| Logs de deploy e resultado do smoke test |
 | Deploy Produção | Publicar aplicação em produção com estratégia controlada | Deploy realizado com sucesso + aplicação saudável após atualização | Logs de deploy, resultado do smoke test e possíveis notificações                  |
-
-
-
                            
 
 ## 5. Gates de Qualidade
