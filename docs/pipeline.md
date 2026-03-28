@@ -71,9 +71,7 @@
   - Squash merge para branches de `feature` - mantém o histórico limpo.
   - Merge commit para `release` e `hotfix` - preserva o contexto do agrupamento.
 
-## 3. Gatilhos de Execução
-| Gatilho | Evento | Branch alvo | Observações |
-|---|---|---|---|
+
 ## 3. Gatilhos de Execução
 
 | Gatilho        | Evento         | Branch alvo        | Observações |
