@@ -83,6 +83,36 @@
 | `test` | Adição ou correção de testes |
 | `chore` | Tarefas de manutenção (dependências, configurações etc.) |
 
+- **Diagrama do fluxo de branches:**
+
+```mermaid
+gitGraph
+   commit id: "init"
+   branch develop
+   checkout develop
+   commit id: "chore: setup inicial"
+   branch feature/checkout
+   checkout feature/checkout
+   commit id: "feat: página de checkout"
+   commit id: "test: testes de checkout"
+   checkout develop
+   merge feature/checkout id: "merge: feature/checkout"
+   branch release/1.0.0
+   checkout release/1.0.0
+   commit id: "chore: bump v1.0.0"
+   checkout main
+   merge release/1.0.0 tag: "v1.0.0"
+   checkout develop
+   merge release/1.0.0
+   branch hotfix/1.0.1
+   checkout hotfix/1.0.1
+   commit id: "fix: falha no pagamento"
+   checkout main
+   merge hotfix/1.0.1 tag: "v1.0.1"
+   checkout develop
+   merge hotfix/1.0.1
+```
+
 - **Política de merge:**
   - Correções urgentes em produção (branches `hotfix/*`) utilizam o tipo `fix` nos commits, conforme a especificação Conventional Commits.
   - Todo código deve passar por Pull Request (PR) com ao menos uma aprovação de revisor técnico.
@@ -102,6 +132,23 @@
 ## 4. Estágios do Pipeline
 
 O pipeline é composto por sete etapas executadas em sequência parcialmente paralela. As etapas de análise de código e varredura de segurança do repositório ocorrem ao mesmo tempo e, somente após ambas serem aprovadas, a imagem da aplicação é gerada. A partir da imagem gerada, os testes e a varredura de segurança da imagem também ocorrem em paralelo. O deploy em homologação ou produção só é acionado após todas as etapas anteriores serem concluídas com sucesso.
+
+```mermaid
+flowchart LR
+    A([Início]) --> B[1. Análise Estática\nSonarQube]
+    A --> C[2. Varredura do\nRepositório - Trivy]
+    B --> D{Gates\naprovados?}
+    C --> D
+    D -->|Não| Z([Pipeline\nInterrompido])
+    D -->|Sim| E[3. Build da\nImagem Docker]
+    E --> F[4. Varredura da\nImagem - Trivy]
+    E --> G[5. Testes\nAutomatizados]
+    F --> H{Gates\naprovados?}
+    G --> H
+    H -->|Não| Z
+    H -->|Sim - develop| I[6. Deploy\nHomologação]
+    H -->|Sim - main| J[7. Deploy\nProdução]
+```
 
 | # | Etapa | Objetivo | Critério de sucesso | Evidência gerada |
 |---|---|---|---|---|
@@ -169,6 +216,21 @@ O modelo de entrega da ShopEasy foca em segregação de ambientes e janelas de p
   - Todos os aprovadores listados devem confirmar individualmente - nenhuma aprovação parcial libera o deploy.
   - Caso qualquer aprovador rejeite, o deploy é bloqueado e o time de desenvolvimento deve corrigir o problema e iniciar um novo ciclo de aprovação.
 
+- **Fluxo de aprovação:**
+
+```mermaid
+flowchart TD
+    A([Deploy solicitado]) --> B{Todas as etapas\ndo pipeline\nconcluídas?}
+    B -->|Não| Z([Pipeline interrompido])
+    B -->|Sim| C{Ambiente\nalvo?}
+    C -->|Homologação| D([Deploy realizado\nautomaticamente])
+    C -->|Produção| E[Solicitar aprovação\naos revisores]
+    E --> F{Todos os\naprovadores\nconfirmaram?}
+    F -->|Não — rejeição| G[Deploy bloqueado\nTime corrige o problema]
+    G --> A
+    F -->|Sim — unanimidade| H([Deploy em produção\nrealizado])
+```
+
 - **Trilha de auditoria:**
   - Cada execução do pipeline gera um identificador rastreável vinculado à versão do código que originou a execução.
   - Aprovações manuais ficam registradas no histórico do ambiente no repositório (quem aprovou e quando).
@@ -192,6 +254,21 @@ O modelo de entrega da ShopEasy foca em segregação de ambientes e janelas de p
   4. Aguardar a conclusão do processo e confirmar que o sistema voltou a responder corretamente.
   5. Registrar no histórico do pipeline a causa da falha e a ação tomada.
   6. Comunicar todos os aprovadores e o time de desenvolvimento sobre o ocorrido e o status de recuperação.
+
+- **Fluxo de rollback:**
+
+```mermaid
+flowchart TD
+    A([Falha detectada\npós-publicação]) --> B[Líder Técnico ou Líder de\nSegurança/DevSecOps acionado]
+    B --> C[Localizar última execução\nbem-sucedida no histórico]
+    C --> D[Acionar novo deploy\na partir da versão estável]
+    D --> E{Sistema voltou\na responder\ncorretamente?}
+    E -->|Não| F[Escalar para\ntodo o time de engenharia]
+    F --> C
+    E -->|Sim| G[Registrar causa\ne ação no histórico]
+    G --> H[Comunicar aprovadores\ne time de desenvolvimento]
+    H --> I([Recuperação concluída])
+```
 
 - **Tempo alvo de recuperação:** Meta de 15 minutos a partir da detecção da falha. O tempo real pode variar conforme a disponibilidade da equipe e a complexidade do problema.
 
