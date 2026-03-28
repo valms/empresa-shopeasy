@@ -69,9 +69,24 @@
   - Alertas de segurança ficam disponíveis no repositório para consulta e acompanhamento.
 
 ## 8. Rollback e Recuperação
-- Quando acionar rollback:
-- Passos de rollback:
-- Tempo alvo de recuperação:
+
+- **Quando acionar rollback:**
+  - Sistema não responde ou retorna erro logo após a publicação de uma nova versão.
+  - Aumento anormal de erros detectado por monitoramento após a publicação.
+  - Alerta crítico gerado durante ou após a publicação da nova versão.
+  - Aprovadores identificam comportamento inesperado durante a validação da nova versão.
+
+- **Responsável pela execução:** Líder Técnico ou Líder de DevSecOps. Na ausência de ambos, qualquer membro sênior do time de engenharia com acesso ao repositório.
+
+- **Passos de rollback:**
+  1. Acessar o histórico de execuções do pipeline no repositório e localizar a última execução bem-sucedida em produção.
+  2. Identificar a versão estável correspondente a essa execução (cada execução é vinculada a uma versão específica do código).
+  3. Acionar um novo deploy a partir dessa versão estável - isso pode ser feito reativando a execução anterior bem-sucedida do pipeline ou iniciando uma nova execução a partir do código daquela versão.
+  4. Aguardar a conclusão do processo e confirmar que o sistema voltou a responder corretamente.
+  5. Registrar no histórico do pipeline a causa da falha e a ação tomada.
+  6. Comunicar todos os aprovadores e o time de desenvolvimento sobre o ocorrido e o status de recuperação.
+
+- **Tempo alvo de recuperação:** Meta de 15 minutos a partir da detecção da falha. O tempo real pode variar conforme a disponibilidade da equipe e a complexidade do problema.
 
 ## 9. Segurança no Pipeline
 - Gestão de segredos:
