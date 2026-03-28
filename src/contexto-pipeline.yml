@@ -4,27 +4,185 @@ on:
   push:
     branches: ["main", "develop"]
   pull_request:
+    branches: ["main", "develop"]
+
+env:
+  IMAGE_NAME: shopeasy-app
+  IMAGE_TAG: ${{ github.sha }}
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
 
 jobs:
-  build:
+
+  sonarqube:
+    name: Análise Estática (SonarQube)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout do repositório
         uses: actions/checkout@v4
-      - name: Build
-        run: echo "Executando build da aplicação"
+        with:
+          fetch-depth: 0
+
+      - name: Executar análise SonarQube
+        uses: SonarSource/sonarqube-scan-action@v3
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=shopeasy
+            -Dsonar.sources=.
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.coverage.exclusions=**/*test*/**
+
+      - name: Verificar Quality Gate
+        run: echo "Quality Gate aprovado — prosseguindo para build"
+
+  trivy-repo-scan:
+    name: Trivy — Varredura do Repositório
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Trivy — scan de filesystem e segredos
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+          scanners: vuln,secret,misconfig
+
+      - name: Publicar relatório Trivy (repositório) como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-repo-report-${{ github.sha }}
+          path: trivy-repo-results.sarif
+          retention-days: 30
+
+  build-image:
+    name: Build — Imagem Docker
+    runs-on: ubuntu-latest
+    needs: [sonarqube, trivy-repo-scan]
+    outputs:
+      image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+    steps:
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build e push da imagem
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Salvar referência da imagem para jobs seguintes
+        run: echo "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}" > image-ref.txt
+
+      - name: Publicar referência como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: image-ref-${{ github.sha }}
+          path: image-ref.txt
+
+  trivy-image-scan:
+    name: Trivy — Varredura da Imagem Docker
+    runs-on: ubuntu-latest
+    needs: build-image
+    steps:
+      - name: Trivy — scan da imagem
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          format: sarif
+          output: trivy-image-results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+      - name: Publicar relatório Trivy (imagem) como artefato
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-report-${{ github.sha }}
+          path: trivy-image-results.sarif
+          retention-days: 30
+
+      - name: Enviar resultado ao GitHub Security (Code Scanning)
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-image-results.sarif
 
   tests:
+    name: Testes Automatizados
     runs-on: ubuntu-latest
-    needs: build
+    needs: build-image
     steps:
-      - name: Testes automatizados
-        run: echo "Executando testes unitários e integração"
+      - name: Checkout do repositório
+        uses: actions/checkout@v4
 
-  deploy_homolog:
+      - name: Testes unitários
+        run: echo "Executando testes unitários (ex.: Jest / JUnit / PyTest)"
+
+      - name: Testes de integração
+        run: echo "Executando testes de integração (ex.: banco de dados em container de serviço)"
+
+      - name: Publicar relatório de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: coverage/
+          retention-days: 30
+
+  deploy-homolog:
+    name: Deploy — Homologação
     runs-on: ubuntu-latest
-    needs: tests
-    if: github.ref == 'refs/heads/develop'
+    needs: [tests, trivy-image-scan]
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment:
+      name: homologacao
+      url: https://homolog.shopeasy.example.com
     steps:
       - name: Deploy em homologação
-        run: echo "Publicação em homologação"
+        run: echo "Publicando imagem ${{ env.IMAGE_TAG }} em homologação"
+
+      - name: Smoke test pós-deploy
+        run: echo "Verificando /health em homologação"
+
+  deploy-prod:
+    name: Deploy — Produção
+    runs-on: ubuntu-latest
+    needs: [tests, trivy-image-scan]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: producao
+      url: https://shopeasy.example.com
+    steps:
+      - name: Deploy em produção (rolling update)
+        run: echo "Publicando imagem ${{ env.IMAGE_TAG }} em produção via rolling update"
+
+      - name: Smoke test pós-deploy
+        run: echo "Verificando /health em produção"
+
+      - name: Notificar equipe em caso de falha
+        if: failure()
+        run: echo "Enviando alerta para canal
