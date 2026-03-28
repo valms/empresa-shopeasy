@@ -48,9 +48,25 @@
 - Janela de publicação:
 
 ## 7. Aprovação e Governança
-- Quem aprova cada ambiente:
-- Critérios de aprovação:
-- Trilha de auditoria:
+
+- **Quem aprova cada ambiente:**
+
+| Ambiente | Tipo de aprovação | Aprovadores obrigatórios |
+|---|---|---|
+| Homologação | Automática | - |
+| Produção | Manual - unanimidade obrigatória | Líder Técnico, Líder de QA, Product Owner, Líder de Segurança/DevSecOps |
+
+- **Critérios de aprovação:**
+  - Todas as etapas do pipeline concluídas com sucesso.
+  - Funcionalidade validada pelo time de QA em homologação antes de solicitar aprovação para produção.
+  - Todos os aprovadores listados devem confirmar individualmente - nenhuma aprovação parcial libera o deploy.
+  - Caso qualquer aprovador rejeite, o deploy é bloqueado e o time de desenvolvimento deve corrigir o problema e iniciar um novo ciclo de aprovação.
+
+- **Trilha de auditoria:**
+  - Cada execução do pipeline gera um identificador rastreável vinculado à versão do código que originou a execução.
+  - Aprovações manuais ficam registradas no histórico do ambiente no repositório (quem aprovou e quando).
+  - Relatórios de segurança (Trivy) e cobertura de testes retidos por 30 dias por execução.
+  - Alertas de segurança ficam disponíveis no repositório para consulta e acompanhamento.
 
 ## 8. Rollback e Recuperação
 - Quando acionar rollback:
