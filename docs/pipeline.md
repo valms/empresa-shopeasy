@@ -262,15 +262,22 @@ O modelo de entrega da ShopEasy foca em segregação de ambientes e janelas de p
 | Baixa | Formalizar lista de exceções de segurança com revisão mensal | Evitar bloqueios por falso-positivo sem abrir mão da rastreabilidade |
 
 
-## Anexos e Referências
+## Anexos
 - Exemplo de pipeline (YAML/arquivo de configuração):
 - Evidências de execução (logs/screenshots):
 - Política de deploy/rollback relacionada:
 - Links de PRs/issues relacionados:
 
+## Referências
+- Repositório de Imagens: [GitHub Container Registry (GHCR)](https://github.com/features/packages)
+
+- Ferramenta de Segurança: [Trivy Documentation](https://aquasecurity.github.io/trivy/)
+
+- Qualidade de Código: [SonarQube Guides](https://docs.sonarqube.org/)
+
 ## Checklist de Qualidade (pré-entrega)
-- [ ] Estágios e gatilhos do pipeline documentados.
-- [ ] Gates de qualidade e critérios de bloqueio definidos.
-- [ ] Estratégia de deploy e rollback detalhada.
-- [ ] Papéis de aprovação e governança descritos.
-- [ ] Premissas, lacunas e riscos preenchidos.
+- [X] Estágios e gatilhos do pipeline documentados.(Seções 3 e 4)
+- [X] Gates de qualidade e critérios de bloqueio definidos. (Seção 5)
+- [X] Estratégia de deploy e rollback detalhada. (Seções 6 e 8)
+- [X] Papéis de aprovação e governança descritos. (Seção 7)
+- [X] Premissas, lacunas e riscos preenchidos. (Seções iniciais e 11)
