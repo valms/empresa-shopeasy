@@ -1,20 +1,40 @@
 # Documentação de Pipeline CI/CD - ShopEasy
 
 ## Metadados do Documento
-- Documento:
-- Versão:
-- Status: Rascunho | Em revisão | Aprovado
-- Responsável (owner):
-- Aprovador:
-- Última atualização:
-- Próxima revisão:
-- Público-alvo:
-- Classificação da informação: Interna | Restrita | Confidencial
+- **Documento:** Documentação de Pipeline CI/CD - ShopEasy
+- **Versão:** 1.0
+- **Status:** Em revisão
+- **Responsável (owner):** Time de Engenharia / DevOps
+- **Aprovador:** Líder Técnico / Gerente de Engenharia
+- **Última atualização:** 2026-03-28
+- **Próxima revisão:** 2026-06-28
+- **Público-alvo:** Time de engenharia, time de QA, gestores de entrega
+- **Classificação da informação:** Interna
 
 ## Premissas, Lacunas e Riscos (preenchimento obrigatório)
-- Premissas (o que está sendo assumido para elaborar o documento):
-- Lacunas de informação (dados ausentes que impactam o detalhamento):
-- Riscos identificados (inclua impacto e mitigação sugerida):
+
+- **Premissas:**
+  - O repositório está hospedado no GitHub e utiliza GitHub Actions como plataforma de CI/CD.
+  - A imagem da aplicação é publicada no GitHub Container Registry (GHCR).
+  - O SonarQube está disponível como serviço externo com credenciais configuradas.
+  - Os ambientes de homologação e produção estão configurados no GitHub com as respectivas regras de proteção.
+  - A branch `develop` corresponde ao ambiente de homologação e `main` ao ambiente de produção.
+  - Os comandos de deploy e testes no pipeline são representativos - devem ser substituídos pelos comandos reais conforme a infraestrutura do projeto.
+
+- **Lacunas de informação:**
+  - Framework de testes não definido - impacta a configuração dos relatórios de cobertura.
+  - Infraestrutura de destino do deploy (Kubernetes, ECS, VMs etc.) não especificada - impede detalhar o mecanismo de publicação e rollback automatizado.
+  - Política de freeze de publicação (ex.: datas de alto volume como Black Friday) não formalizada.
+
+- **Riscos identificados:**
+
+| # | Risco | Impacto | Mitigação |
+|---|---|---|---|
+| R1 | Credenciais expostas em repositório público | Alto | Manter repositório privado; usar GitHub Secrets com escopo por ambiente |
+| R2 | Varredura de segurança bloqueando deploy por vulnerabilidade sem correção disponível | Médio | Manter lista de exceções documentadas com data de revisão e justificativa |
+| R3 | Tag `latest` da imagem sobrescrita a cada publicação | Alto | Adotar versionamento semântico para produção; restringir `latest` a desenvolvimento |
+| R4 | Ausência de verificação de funcionamento real após o deploy | Alto | Substituir os placeholders por verificação real via endpoint `/health` |
+| R5 | Deploy em produção sem aprovação manual configurada | Alto | Configurar aprovadores obrigatórios no ambiente de produção antes do primeiro uso |
 
 
 ## 1. Visão Geral do Pipeline
@@ -62,9 +82,9 @@
 | `refactor` | Refatoração sem mudança de comportamento |
 | `test` | Adição ou correção de testes |
 | `chore` | Tarefas de manutenção (dependências, configurações etc.) |
-| `hotfix` | Correção urgente em produção |
 
 - **Política de merge:**
+  - Correções urgentes em produção (branches `hotfix/*`) utilizam o tipo `fix` nos commits, conforme a especificação Conventional Commits.
   - Todo código deve passar por Pull Request (PR) com ao menos uma aprovação de revisor técnico.
   - A execução bem-sucedida do pipeline (build e testes) é requisito obrigatório para o merge.
   - Commits diretos nas branches `main` e `develop` não são permitidos.
@@ -74,55 +94,65 @@
 
 ## 3. Gatilhos de Execução
 
-| Gatilho        | Evento         | Branch alvo        | Observações |
-|----------------|----------------|-------------------|-------------|
-| Push           | push           | main, develop     | Executa pipeline completo (build, análise, testes e possível deploy). |
-| Pull Request   | pull_request   | main, develop     | Executa validações (análise estática, segurança e testes), sem deploy. |
-| Deploy Homolog | push           | develop           | Executado apenas após sucesso dos jobs anteriores. Publica em ambiente de homologação. |
-| Deploy Produção| push           | main              | Executado apenas após sucesso dos jobs anteriores. Publica em produção com estratégia rolling update. |
+| Gatilho | Evento | Branch alvo | Observações |
+|---|---|---|---|
+| Push | Envio de código | `main`, `develop` | Executa o pipeline completo - análise, segurança, testes e deploy no ambiente correspondente à branch. |
+| Pull Request | Abertura ou atualização de PR | `main`, `develop` | Executa apenas as etapas de validação (análise estática, segurança e testes). Não realiza deploy nem publica imagem. |
 
 ## 4. Estágios do Pipeline
 
-   <img width="1863" height="186" alt="image" src="https://github.com/user-attachments/assets/810b091b-c387-4a84-b378-7e612d26be99" />
-                        
+O pipeline é composto por sete etapas executadas em sequência parcialmente paralela. As etapas de análise de código e varredura de segurança do repositório ocorrem ao mesmo tempo e, somente após ambas serem aprovadas, a imagem da aplicação é gerada. A partir da imagem gerada, os testes e a varredura de segurança da imagem também ocorrem em paralelo. O deploy em homologação ou produção só é acionado após todas as etapas anteriores serem concluídas com sucesso.
+
+| # | Etapa | Objetivo | Critério de sucesso | Evidência gerada |
+|---|---|---|---|---|
+| 1 | Análise Estática (SonarQube) | Verificar qualidade e segurança do código-fonte | quality gate aprovado | Relatório no SonarQube |
+| 2 | Varredura do Repositório (Trivy) | Detectar vulnerabilidades, segredos expostos e misconfigurações | Nenhum achado crítico ou alto | Relatório retido por 30 dias |
+| 3 | Build da Imagem Docker | Gerar e publicar a imagem da aplicação | Imagem publicada com sucesso | Imagem versionada no GHCR |
+| 4 | Varredura da Imagem (Trivy) | Detectar vulnerabilidades na imagem gerada | Nenhum achado crítico ou alto | Relatório retido por 30 dias |
+| 5 | Testes Automatizados | Validar funcionamento da aplicação | Todos os testes passam | Relatório de cobertura retido por 30 dias |
+| 6 | Deploy - Homologação | Publicar a versão em homologação | Sistema responde corretamente após a publicação | Registro no histórico do pipeline |
+| 7 | Deploy - Produção | Publicar a versão em produção após aprovação | Aprovação unânime + sistema responde corretamente | Registro no histórico do pipeline |
 
 ## 5. Gates de Qualidade
-Os Quality Gates são as barreiras automáticas que garantem que apenas códigos que atingem os padrões de excelência da **ShopEasy** avancem no pipeline.
 
-* **Testes Obrigatórios:**
-    * **Unitários:** Validação de lógica isolada (Job: `tests`).
-    * **Integração:** Validação de comunicação entre componentes e serviços (Job: `tests`).
-    * **Smoke Tests:** Testes de fumaça pós-deploy via endpoint `/health` (Jobs: `deploy-homolog` e `deploy-prod`).
+Gates de qualidade são barreiras automáticas que impedem o avanço do pipeline caso o código não atinja os padrões definidos pela ShopEasy.
 
-* **Análises Estáticas (SonarQube):**
-    O pipeline utiliza o `sonarqube-scan-action` com o parâmetro `sonar.qualitygate.wait=true`. O pipeline será interrompido se os seguintes índices não forem atingidos:
-    * **Manutenibilidade:** Rating B (6% - 10%).
-    * **Análise de Bugs:** Rating A (Zero bugs críticos).
-    * **Cobertura de Testes:** Superior a **80%**.
-    * **Duplicação de Código:** Inferior a **3%**.
+- **Testes obrigatórios:**
+  - **Unitários:** Validam a lógica de cada componente de forma isolada.
+  - **Integração:** Validam a comunicação entre componentes e serviços da aplicação.
+  - **Verificação pós-publicação:** Confirmação automática de que o sistema responde corretamente após cada deploy, via endpoint `/health`.
 
-* **Segurança (TRIVY):**
-    Conforme configurado nos estágios 2 e 4 do pipeline, o **Trivy** realiza varreduras de *filesystem*, segredos expostos e vulnerabilidades na imagem Docker.
-    * **Critério de Bloqueio:** O pipeline é interrompido imediatamente (`exit-code: 1`) caso sejam encontradas vulnerabilidades de severidade **HIGH** ou **CRITICAL**.
-    É possível obter mais detalhes sobre o Trivy na **ETAPA 9** deste documento.
+- **Análise estática (SonarQube):**
+  O pipeline bloqueia automaticamente caso qualquer um dos critérios abaixo não seja atingido:
+  - **Manutenibilidade:** Rating mínimo B (índice de débito técnico entre 6% e 10%).
+  - **Bugs:** Rating A - zero bugs críticos identificados.
+  - **Cobertura de testes:** Superior a 80% do código.
+  - **Duplicação de código:** Inferior a 3%.
+
+- **Segurança (Trivy):**
+  O Trivy realiza duas varreduras - no repositório (etapa 2) e na imagem gerada (etapa 4). Mais detalhes na seção 9 deste documento.
+  - **Critério de bloqueio:** O pipeline é interrompido caso sejam encontradas vulnerabilidades de severidade **Alta** ou **Crítica**.
 
 
 ## 6. Estratégia de Deploy
-O modelo de entrega da **ShopEasy** foca em segregação de ambientes e janelas de manutenção controladas.
 
-### 6.1. Ambientes (dev/hml/prd)
-O projeto possui 3 ambientes segregados:
-* **Desenvolvimento (DEV):** Branch que roda localmente para construção de features.
-* **Homologação (HML):** Ambiente de testes para validações do time de **QA**.
-* **Produção (PRD):** Ambiente final de entrega de valor.
+O modelo de entrega da ShopEasy foca em segregação de ambientes e janelas de publicação controladas.
 
-### 6.2. Tipo de Deploy
-* **Estratégia:** **Recreate**. 
-* **Funcionamento:** Sempre é gerada uma nova imagem versionada no **GHCR** (utilizando o `${{ github.sha }}`). A imagem antiga é preservada no registro para permitir o processo de **Rollback Manual** em caso de incidentes.
+- **Ambientes:**
 
-### 6.3. Janela de Publicação
-* **Dias:** Terças-feiras e Quintas-feiras.
-* **Horário:** 03:00 AM (Horário de Brasília/São Paulo).
+| Ambiente | Sigla | Finalidade |
+|---|---|---|
+| Desenvolvimento | DEV | Ambiente local para construção e validação inicial de novas funcionalidades |
+| Homologação | HML | Ambiente de testes para validação pelo time de QA antes da produção |
+| Produção | PRD | Ambiente final acessado pelos usuários da plataforma |
+
+- **Tipo de deploy:**
+  - **Estratégia:** Recreate - a cada publicação, uma nova versão da aplicação é gerada e implantada, substituindo a anterior.
+  - **Rastreabilidade:** Cada versão publicada é identificada unicamente e vinculada ao código que a originou. Versões anteriores são preservadas no registro de imagens para viabilizar o rollback manual em caso de incidentes.
+
+- **Janela de publicação:**
+  - **Dias:** Terças-feiras e Quintas-feiras.
+  - **Horário:** 03:00 (horário de Brasília/São Paulo).
 
 ## 7. Aprovação e Governança
 
@@ -153,7 +183,7 @@ O projeto possui 3 ambientes segregados:
   - Alerta crítico gerado durante ou após a publicação da nova versão.
   - Aprovadores identificam comportamento inesperado durante a validação da nova versão.
 
-- **Responsável pela execução:** Líder Técnico ou Líder de DevSecOps. Na ausência de ambos, qualquer membro sênior do time de engenharia com acesso ao repositório.
+- **Responsável pela execução:** Líder Técnico ou Líder de Segurança/DevSecOps. Na ausência de ambos, qualquer membro sênior do time de engenharia com acesso ao repositório.
 
 - **Passos de rollback:**
   1. Acessar o histórico de execuções do pipeline no repositório e localizar a última execução bem-sucedida em produção.
@@ -166,27 +196,70 @@ O projeto possui 3 ambientes segregados:
 - **Tempo alvo de recuperação:** Meta de 15 minutos a partir da detecção da falha. O tempo real pode variar conforme a disponibilidade da equipe e a complexidade do problema.
 
 ## 9. Segurança no Pipeline
-- Gestão de segredos: Os segredos sensíveis, como o SONAR_TOKEN e o SONAR_HOST_URL, devem ser configurados exclusivamente via GitHub Secrets. Como medida de mitigação contra exposição, recomenda-se o uso de repositórios privados e o escopo de segredos por ambiente. O GITHUB_TOKEN é gerado automaticamente pelo GitHub Actions para autenticação no GHCR, dispensando configuração manual.
-- Controle de acesso: O acesso e as promoções para o ambiente de produção são controlados pelo recurso de "environment" do GitHub Actions. É obrigatória a configuração de "Required reviewers" (aprovadores manuais) para garantir que nenhum deploy em produção ocorra sem revisão humana prévia.
-- Validações de segurança: O pipeline integra múltiplas camadas de proteção:
-    - Análise Estática (SAST): O SonarQube bloqueia o pipeline imediatamente se o Quality Gate não for aprovado, cobrindo bugs e vulnerabilidades estáticas.
-    - Varredura do Repositório: O job trivy-repo-scan busca segredos expostos, vulnerabilidades em dependências e misconfigurações em arquivos de infraestrutura (IaC).
-    - Varredura de Imagem: Após o build, o Trivy inspeciona a imagem Docker em busca de CVEs no sistema operacional, impedindo o deploy caso existam falhas de nível HIGH ou CRITICAL.
+
+- **Gestão de segredos:**
+  - Credenciais sensíveis (tokens de autenticação e URLs de serviços) devem ser configuradas exclusivamente via GitHub Secrets, nunca expostas diretamente no código ou nos arquivos de configuração.
+  - O token de acesso ao registro de imagens é gerado automaticamente pelo GitHub Actions, dispensando configuração manual.
+  - Recomenda-se manter o repositório privado e restringir o escopo de cada credencial ao ambiente onde ela é necessária.
+
+- **Controle de acesso:**
+  - O acesso ao ambiente de produção é controlado pelo mecanismo de ambientes do GitHub Actions.
+  - Nenhum deploy em produção pode ocorrer sem aprovação humana prévia - os aprovadores obrigatórios estão definidos na seção 7 deste documento.
+  - Commits diretos nas branches `main` e `develop` são bloqueados por regras de proteção de branch.
+
+- **Validações de segurança:**
+  O pipeline aplica três camadas de verificação de segurança:
+  - **Análise de código:** O SonarQube verifica o código-fonte em busca de bugs, vulnerabilidades e problemas de qualidade antes do build.
+  - **Varredura do repositório:** O Trivy inspeciona as dependências do projeto, segredos expostos no código e possíveis misconfigurações em arquivos de infraestrutura.
+  - **Varredura da imagem:** Após o build, o Trivy analisa a imagem gerada em busca de vulnerabilidades conhecidas no sistema operacional e nos pacotes instalados. O pipeline é bloqueado caso sejam encontradas falhas de severidade **Alta** ou **Crítica**.
 
 ## 10. Métricas e Observabilidade
-- Lead time: Embora o valor exato dependa da operação, o pipeline utiliza Docker Buildx com cache para otimizar o tempo de build e reduzir o tempo total de entrega (lead time). A adoção de tags imutáveis ({sha}) facilita o rastreio rápido de qual mudança está em qual estágio.
-- Taxa de falha de deploy: O pipeline monitora as falhas através de um step de notificação automática em caso de erro no job de produção, direcionando alertas para o canal #deploys da equipe.
-- Tempo médio de restauração: O tempo de recuperação é apoiado por uma estratégia de rastreabilidade total, onde cada imagem publicada está vinculada a um commit exato ({sha}), permitindo a identificação e reversão rápida de mudanças problemáticas. O template prevê a definição de passos de rollback e um tempo alvo de recuperação para guiar o time.
-- Onde os logs/indicadores são consultados:
-    - Logs de Execução: Consultados diretamente na interface do GitHub Actions.
-    - Alertas de Segurança: Centralizados no GitHub Security via arquivos SARIF.
-    - Audit Trail: O registro de cada deploy e suas aprovações fica armazenado na trilha de auditoria do ambiente no GitHub.
-    - Relatórios Técnicos: Artefatos de varredura (como os do Trivy) são retidos por 30 dias para consulta técnica.
+
+- **Lead time** (tempo entre o envio do código e a disponibilidade em produção):
+  - Meta: até 30 minutos em condições normais.
+  - O pipeline utiliza cache de build para reduzir o tempo de geração da imagem e otimizar o tempo total de entrega.
+
+- **Taxa de falha de deploy:**
+  - Meta: inferior a 5% das publicações em produção.
+  - Em caso de falha, o pipeline notifica automaticamente o canal #deploys da equipe para ação imediata.
+
+- **Tempo médio de restauração** (tempo entre a detecção de uma falha e a recuperação do ambiente):
+  - Meta: até 15 minutos (ver seção 8 deste documento).
+  - Cada versão publicada é rastreável, o que permite identificar e reverter rapidamente uma mudança problemática.
+
+- **Onde consultar logs e indicadores:**
+  - **Histórico de execuções do pipeline:** Disponível no repositório, com registro de cada etapa executada e seu resultado.
+  - **Alertas de segurança:** Disponíveis no repositório para consulta e acompanhamento.
+  - **Trilha de auditoria:** Registro de cada deploy e suas aprovações disponível no histórico do ambiente no repositório.
+  - **Relatórios de segurança e cobertura:** Retidos por 30 dias por execução, vinculados ao histórico do pipeline.
 
 ## 11. Riscos e Melhorias
-- Riscos atuais:
-- Dependências críticas:
-- Melhorias recomendadas:
+
+- **Riscos atuais:**
+  Os riscos identificados estão detalhados na tabela da seção **Premissas, Lacunas e Riscos** (R1–R5) no início deste documento, com impacto e mitigação para cada um.
+
+- **Dependências críticas:**
+
+| Dependência | Impacto em caso de indisponibilidade |
+|---|---|
+| GitHub Actions | Pipeline não executado - nenhuma entrega possível |
+| SonarQube | Pipeline bloqueado na primeira etapa - nenhum build realizado |
+| GitHub Container Registry (GHCR) | Imagem não publicada - deploys impossibilitados |
+| Serviço de testes de integração | Etapa de testes falha - deploy bloqueado |
+
+- **Melhorias recomendadas:**
+
+| Prioridade | Melhoria | Justificativa |
+|---|---|---|
+| Alta | Configurar aprovadores obrigatórios no ambiente de produção | Evitar deploy acidental sem revisão humana |
+| Alta | Substituir placeholders de deploy e testes pelos comandos reais | Pipeline funcional em ambiente real |
+| Alta | Implementar verificação de funcionamento real via endpoint `/health` | Detectar falhas silenciosas após a publicação |
+| Alta | Adotar versionamento semântico nas tags de imagem | Rastreabilidade clara de qual versão está em cada ambiente |
+| Média | Adicionar teste de segurança em tempo de execução (DAST) após homologação | Ampliar cobertura de segurança além da análise estática |
+| Média | Gerar inventário de componentes da imagem (SBOM) | Rastreabilidade de dependências para auditoria e conformidade |
+| Média | Usar conta de serviço dedicada para publicação no GHCR | Reduzir risco de vazamento de credencial pessoal |
+| Baixa | Separar os executores de build e deploy | Reduzir superfície de ataque no ambiente de publicação |
+| Baixa | Formalizar lista de exceções de segurança com revisão mensal | Evitar bloqueios por falso-positivo sem abrir mão da rastreabilidade |
 
 
 ## Anexos e Referências
