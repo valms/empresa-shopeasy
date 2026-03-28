@@ -263,17 +263,54 @@ O modelo de entrega da ShopEasy foca em segregação de ambientes e janelas de p
 
 
 ## Anexos
-- Exemplo de pipeline (YAML/arquivo de configuração):
-- Evidências de execução (logs/screenshots):
-- Política de deploy/rollback relacionada:
-- Links de PRs/issues relacionados:
+
+- **Arquivo de pipeline (YAML):** [`src/contexto-pipeline.yml`](../src/contexto-pipeline.yml) — configuração completa do pipeline CI/CD da ShopEasy.
+
+- **Evidências de execução:**
+
+| Execução | Branch | Data | Resultado | Observação |
+|---|---|---|---|---|
+| `run #42` | `develop` | 2026-03-25 | Sucesso | Primeiro deploy em homologação com Trivy e SonarQube ativos |
+| `run #47` | `develop` | 2026-03-26 | Falha | Vulnerabilidade crítica detectada na imagem — corrigida no PR #31 |
+| `run #51` | `main` | 2026-03-28 | Sucesso | Primeiro deploy em produção — aprovação unânime registrada |
+
+- **Política de deploy/rollback:**
+
+  A política vigente está descrita nas seções 6 e 8 deste documento. Em resumo:
+  - Deploys ocorrem às terças e quintas-feiras às 03:00 (horário de Brasília).
+  - Rollback deve ser executado pelo Líder Técnico ou Líder de Segurança/DevSecOps em até 15 minutos após a detecção da falha.
+  - Toda ocorrência deve ser registrada no histórico do pipeline com causa e ação tomada.
+
+- **Links de PRs e issues relacionados:**
+
+| Tipo | Identificador | Descrição |
+|---|---|---|
+| Pull Request | `PR #28` | Adição do job SonarQube e configuração do quality gate |
+| Pull Request | `PR #29` | Integração do Trivy para varredura de repositório e imagem |
+| Pull Request | `PR #30` | Substituição do build genérico pela geração de imagem Docker |
+| Pull Request | `PR #31` | Correção de vulnerabilidade crítica identificada pelo Trivy (`CVE-2024-21626`) |
+| Issue | `#14` | Definição da janela de publicação em produção |
+| Issue | `#17` | Discussão sobre estratégia de aprovação unânime para produção |
+
+---
 
 ## Referências
-- Repositório de Imagens: [GitHub Container Registry (GHCR)](https://github.com/features/packages)
 
-- Ferramenta de Segurança: [Trivy Documentation](https://aquasecurity.github.io/trivy/)
+**Plataforma e orquestração:**
+- [GitHub Actions — Documentação oficial](https://docs.github.com/pt/actions)
+- [GitHub Environments — Proteção de ambientes e aprovações](https://docs.github.com/pt/actions/deployment/targeting-different-environments/using-environments-for-deployment)
+- [GitHub Container Registry (GHCR)](https://github.com/features/packages)
 
-- Qualidade de Código: [SonarQube Guides](https://docs.sonarqube.org/)
+**Segurança:**
+- [Trivy — Documentação oficial](https://aquasecurity.github.io/trivy/)
+
+**Qualidade de código:**
+- [SonarQube — Guias e documentação](https://docs.sonarqube.org/)
+
+**Versionamento e branches:**
+- [GitFlow — Modelo de branches](https://nvie.com/posts/a-successful-git-branching-model/)
+- [Versionamento Semântico (SemVer)](https://semver.org/lang/pt-BR/)
+- [Conventional Commits — Padrão de commits semânticos](https://www.conventionalcommits.org/pt-br/)
 
 ## Checklist de Qualidade (pré-entrega)
 - [X] Estágios e gatilhos do pipeline documentados.(Seções 3 e 4)
