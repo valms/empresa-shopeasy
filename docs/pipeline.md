@@ -22,8 +22,7 @@
   - Os comandos de deploy e testes no pipeline são representativos - devem ser substituídos pelos comandos reais conforme a infraestrutura do projeto.
 
 - **Lacunas de informação:**
-  - Framework de testes não definido - impacta a configuração dos relatórios de cobertura.
-  - Infraestrutura de destino do deploy (Kubernetes, ECS, VMs etc.) não especificada - impede detalhar o mecanismo de publicação e rollback automatizado.
+  - Infraestrutura de destino do deploy (Kubernetes, ECS, VMs etc.) não especificada — impede detalhar o mecanismo de publicação e rollback automatizado.
   - Política de freeze de publicação (ex.: datas de alto volume como Black Friday) não formalizada.
 
 - **Riscos identificados:**
@@ -53,7 +52,7 @@
 | SonarQube | Análise estática do código-fonte e validação do quality gate |
 | Trivy | Varredura de segurança no repositório e na imagem gerada (vulnerabilidades, segredos expostos e misconfigurações) |
 | GitHub Environments | Controle de aprovação manual e registro de auditoria por ambiente |
-| Framework de testes (a definir) | Execução de testes unitários e de integração - framework a ser definido conforme stack do projeto |
+| Jest | Execução de testes unitários e de integração com geração de relatório de cobertura |
 
 ## 2. Estratégia de Versionamento e Branches
 
@@ -164,9 +163,9 @@ flowchart LR
 
 Gates de qualidade são barreiras automáticas que impedem o avanço do pipeline caso o código não atinja os padrões definidos pela ShopEasy.
 
-- **Testes obrigatórios:**
-  - **Unitários:** Validam a lógica de cada componente de forma isolada.
-  - **Integração:** Validam a comunicação entre componentes e serviços da aplicação.
+- **Testes obrigatórios** (framework: [Jest](https://jestjs.io/pt-BR/)):
+  - **Unitários:** Validam a lógica de cada componente de forma isolada. Executados via `jest --testPathPattern="\.unit\."` com geração de relatório de cobertura.
+  - **Integração:** Validam a comunicação entre componentes e serviços da aplicação. Executados via `jest --testPathPattern="\.integration\."`.
   - **Verificação pós-publicação:** Confirmação automática de que o sistema responde corretamente após cada deploy, via endpoint `/health`.
 
 - **Análise estática (SonarQube):**

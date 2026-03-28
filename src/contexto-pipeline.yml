@@ -132,18 +132,27 @@ jobs:
           sarif_file: trivy-image-results.sarif
 
   tests:
-    name: Testes Automatizados
+    name: Testes Automatizados (Jest)
     runs-on: ubuntu-latest
     needs: build-image
     steps:
       - name: Checkout do repositório
         uses: actions/checkout@v4
 
-      - name: Testes unitários
-        run: echo "Executando testes unitários (ex.: Jest / JUnit / PyTest)"
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Testes de integração
-        run: echo "Executando testes de integração (ex.: banco de dados em container de serviço)"
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Testes unitários (Jest)
+        run: npx jest --testPathPattern="\.unit\." --coverage --coverageDirectory=coverage/unit
+
+      - name: Testes de integração (Jest)
+        run: npx jest --testPathPattern="\.integration\."
 
       - name: Publicar relatório de cobertura
         if: always()
