@@ -197,8 +197,9 @@ O modelo de entrega da ShopEasy foca em segregação de ambientes e janelas de p
   - **Rastreabilidade:** Cada versão publicada é identificada unicamente e vinculada ao código que a originou. Versões anteriores são preservadas no registro de imagens para viabilizar o rollback manual em caso de incidentes.
 
 - **Janela de publicação:**
-  - **Dias:** Terças-feiras e Quintas-feiras.
-  - **Horário:** 03:00 (horário de Brasília/São Paulo).
+  - **Dias:** Terças-feiras e Quintas-feiras. (Para as features novas desenvolvidas)
+  - **Horário:** 03:00 AM (horário de Brasília/São Paulo).
+  - Observação: Para todo bug crítico a atualização é feita no mesmo horário de 03:00 AM, independente do dia.
 
 ## 7. Aprovação e Governança
 
